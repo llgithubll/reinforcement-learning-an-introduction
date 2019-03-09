@@ -15,6 +15,7 @@ BOARD_ROWS = 3
 BOARD_COLS = 3
 BOARD_SIZE = BOARD_ROWS * BOARD_COLS
 
+
 class State:
     def __init__(self):
         # the board is represented by an n * n array,
@@ -101,6 +102,7 @@ class State:
             print(out)
         print('-------------')
 
+
 def get_all_states_impl(current_state, current_symbol, all_states):
     for i in range(0, BOARD_ROWS):
         for j in range(0, BOARD_COLS):
@@ -113,6 +115,7 @@ def get_all_states_impl(current_state, current_symbol, all_states):
                     if not isEnd:
                         get_all_states_impl(newState, -current_symbol, all_states)
 
+
 def get_all_states():
     current_symbol = 1
     current_state = State()
@@ -121,8 +124,10 @@ def get_all_states():
     get_all_states_impl(current_state, current_symbol, all_states)
     return all_states
 
+
 # all possible board configurations
 all_states = get_all_states()
+
 
 class Judger:
     # @player1: the player who will move first, its chessman will be 1
@@ -167,6 +172,7 @@ class Judger:
                     current_state.print_state()
                 return current_state.winner
 
+
 # AI player
 class Player:
     # @step_size: the step size to update estimations
@@ -210,6 +216,10 @@ class Player:
 
         self.states = [state.hash() for state in self.states]
 
+        # RLbook2018 page.31
+        # 核心, 从i+1到0, 逆序更新每一个状态
+        # V(State_t) = V(State_t) + alpha * [V(State_t+1) - V(State_t)]
+        # move的方式: greedy + random, 随机的move得到的状态, V()不变
         for i in reversed(range(len(self.states) - 1)):
             state = self.states[i]
             td_error = self.greedy[i] * (self.estimations[self.states[i + 1]] - self.estimations[state])
@@ -228,7 +238,7 @@ class Player:
 
         if np.random.rand() < self.epsilon:
             action = next_positions[np.random.randint(len(next_positions))]
-            action.append(self.symbol)
+            action.append(self.symbol)  # [i, j, symbol]
             self.greedy[-1] = False
             return action
 
@@ -239,7 +249,7 @@ class Player:
         np.random.shuffle(values)
         values.sort(key=lambda x: x[0], reverse=True)
         action = values[0][1]
-        action.append(self.symbol)
+        action.append(self.symbol)  # [i, j, symbol]
         return action
 
     def save_policy(self):
@@ -249,6 +259,7 @@ class Player:
     def load_policy(self):
         with open('policy_%s.bin' % ('first' if self.symbol == 1 else 'second'), 'rb') as f:
             self.estimations = pickle.load(f)
+
 
 # human interface
 # input a number to put a chessman
@@ -283,6 +294,7 @@ class HumanPlayer:
         j = data % BOARD_COLS
         return (i, j, self.symbol)
 
+
 def train(epochs, print_every_n=500):
     player1 = Player(epsilon=0.01)
     player2 = Player(epsilon=0.01)
@@ -295,6 +307,7 @@ def train(epochs, print_every_n=500):
             player1_win += 1
         if winner == -1:
             player2_win += 1
+        # 平局的次数越来越多, 两者的胜率越来越低
         if i % print_every_n == 0:
             print('Epoch %d, player 1 winrate: %.02f, player 2 winrate: %.02f' % (i, player1_win / i, player2_win / i))
         player1.backup()
@@ -302,6 +315,7 @@ def train(epochs, print_every_n=500):
         judger.reset()
     player1.save_policy()
     player2.save_policy()
+
 
 def compete(turns):
     player1 = Player(epsilon=0)
@@ -318,7 +332,9 @@ def compete(turns):
         if winner == -1:
             player2_win += 1
         judger.reset()
+    # 训练的足够好, 那么player1和player2总会打成平局
     print('%d turns, player 1 win %.02f, player 2 win %.02f' % (turns, player1_win / turns, player2_win / turns))
+
 
 # The game is a zero sum game. If both players are playing with an optimal strategy, every game will end in a tie.
 # So we test whether the AI can guarantee at least a tie if it goes second.
@@ -326,7 +342,7 @@ def play():
     while True:
         player1 = HumanPlayer()
         player2 = Player(epsilon=0)
-        judger = Judger(player1, player2)
+        judger = Judger(player1, player2)  # Judger会设置(分配)symbol
         player2.load_policy()
         winner = judger.play()
         if winner == player2.symbol:
@@ -336,8 +352,9 @@ def play():
         else:
             print("It is a tie!")
 
+
 if __name__ == '__main__':
-    train(int(1e5))
+    # train(int(1e5))
     compete(int(1e3))
     play()
 
